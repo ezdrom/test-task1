@@ -256,9 +256,29 @@ export default function Home() {
       
       const { field, sourceContainer } = JSON.parse(data);
       if (!field || !sourceContainer) return;
-
-      // If source and target containers are the same, do nothing
-      if (sourceContainer === targetContainerId) return;
+      
+      // Get the drop position
+      const container = e.target.closest('[id^="container"]');
+      const containerRect = container.getBoundingClientRect();
+      const dropY = e.clientY - containerRect.top;
+      
+      // Find the closest field element
+      const fieldElements = container.querySelectorAll('[data-id]');
+      let dropIndex = -1;
+      
+      for (let i = 0; i < fieldElements.length; i++) {
+        const fieldRect = fieldElements[i].getBoundingClientRect();
+        const fieldMiddle = fieldRect.top + fieldRect.height / 2 - containerRect.top;
+        
+        if (dropY < fieldMiddle) {
+          dropIndex = i;
+          break;
+        }
+      }
+      
+      if (dropIndex === -1) {
+        dropIndex = fieldElements.length;
+      }
       
       // Create a new field with a unique ID
       const newField = {
@@ -266,22 +286,43 @@ export default function Home() {
         id: `${field.id}-${Date.now()}`
       };
       
-      // Remove from source container
-      if (sourceContainer === 'container1') {
-        const newFields = container1Fields.filter(f => f.id !== field.id);
-        updateFields('container1', newFields);
-      } else if (sourceContainer === 'container2') {
-        const newFields = container2Fields.filter(f => f.id !== field.id);
-        updateFields('container2', newFields);
-      }
-      
-      // Add to target container
-      if (targetContainerId === 'container1') {
-        const newFields = [...container1Fields, newField];
-        updateFields('container1', newFields);
-      } else if (targetContainerId === 'container2') {
-        const newFields = [...container2Fields, newField];
-        updateFields('container2', newFields);
+      if (sourceContainer === targetContainerId) {
+        // Reordering within the same container
+        let currentFields = sourceContainer === 'container1' ? container1Fields : container2Fields;
+        
+        // Remove the field from its current position
+        currentFields = currentFields.filter(f => f.id !== field.id);
+        
+        // Insert at the new position
+        currentFields.splice(dropIndex, 0, newField);
+        
+        // Update the container
+        if (sourceContainer === 'container1') {
+          updateFields('container1', currentFields);
+        } else {
+          updateFields('container2', currentFields);
+        }
+      } else {
+        // Moving between containers
+        // Remove from source container
+        if (sourceContainer === 'container1') {
+          const newFields = container1Fields.filter(f => f.id !== field.id);
+          updateFields('container1', newFields);
+        } else if (sourceContainer === 'container2') {
+          const newFields = container2Fields.filter(f => f.id !== field.id);
+          updateFields('container2', newFields);
+        }
+        
+        // Add to target container at the drop position
+        if (targetContainerId === 'container1') {
+          let newFields = [...container1Fields];
+          newFields.splice(dropIndex, 0, newField);
+          updateFields('container1', newFields);
+        } else if (targetContainerId === 'container2') {
+          let newFields = [...container2Fields];
+          newFields.splice(dropIndex, 0, newField);
+          updateFields('container2', newFields);
+        }
       }
     } catch (err) {
       console.error('Error handling drop:', err);
