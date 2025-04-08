@@ -2,151 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
-
-// Field Item Component
-const DraggableField = ({ field, onDragStart }) => {
-  return (
-    <div
-      className="p-4 my-2 rounded shadow bg-white cursor-move"
-      draggable="true"
-      onDragStart={(e) => onDragStart(e, field)}
-      data-id={field.id}
-    >
-      <div className="font-medium">{field.label}</div>
-      {field.type === 'text' && (
-        <input type="text" placeholder={field.placeholder || 'Text input'} className="mt-2 p-2 border rounded w-full" disabled />
-      )}
-      {field.type === 'checkbox' && (
-        <div className="mt-2">
-          <input type="checkbox" id={`checkbox-${field.id}`} className="mr-2" disabled />
-          <label htmlFor={`checkbox-${field.id}`}>{field.checkboxLabel || 'Checkbox option'}</label>
-        </div>
-      )}
-      {field.type === 'date' && (
-        <input type="date" className="mt-2 p-2 border rounded w-full" disabled />
-      )}
-    </div>
-  );
-};
-
-// Fields Container Component
-const FieldsContainer = ({ 
-  containerId, 
-  fields, 
-  onDragOver, 
-  onDrop, 
-  onDragStart,
-  onEditField 
-}) => {
-  console.log(fields, "fields");
-  return (
-    <div 
-      className="p-4 border-2 border-gray-300 rounded min-h-64"
-      onDragOver={(e) => onDragOver(e)}
-      onDrop={(e) => onDrop(e, containerId)}
-      id={containerId}
-    >
-      {fields.map((field) => (
-        <div key={field.id} className="relative">
-          <DraggableField field={field} onDragStart={onDragStart} />
-          <button 
-            className="absolute top-2 right-2 bg-blue-500 text-white p-1 rounded text-xs"
-            onClick={() => onEditField(field.id, containerId)}
-          >
-            Edit
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-// Field Editor Modal
-const FieldEditorModal = ({ field, onSave, onClose }) => {
-  const [editedField, setEditedField] = useState(field);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setEditedField(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-        <h2 className="text-xl font-bold mb-4">Edit Field</h2>
-        
-        <div className="mb-4">
-          <label className="block mb-2">Field Label</label>
-          <input
-            type="text"
-            name="label"
-            value={editedField.label}
-            onChange={handleChange}
-            className="w-full p-2 border rounded"
-          />
-        </div>
-
-        <div className="mb-4">
-          <label className="block mb-2">Field Type</label>
-          <select
-            name="type"
-            value={editedField.type}
-            onChange={handleChange}
-            className="w-full p-2 border rounded"
-          >
-            <option value="text">Text Input</option>
-            <option value="checkbox">Checkbox</option>
-            <option value="date">Date Picker</option>
-          </select>
-        </div>
-
-        {editedField.type === 'text' && (
-          <div className="mb-4">
-            <label className="block mb-2">Placeholder</label>
-            <input
-              type="text"
-              name="placeholder"
-              value={editedField.placeholder || ''}
-              onChange={handleChange}
-              className="w-full p-2 border rounded"
-            />
-          </div>
-        )}
-
-        {editedField.type === 'checkbox' && (
-          <div className="mb-4">
-            <label className="block mb-2">Checkbox Label</label>
-            <input
-              type="text"
-              name="checkboxLabel"
-              value={editedField.checkboxLabel || ''}
-              onChange={handleChange}
-              className="w-full p-2 border rounded"
-            />
-          </div>
-        )}
-
-        <div className="flex justify-end gap-2 mt-6">
-          <button 
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-300 rounded"
-          >
-            Cancel
-          </button>
-          <button 
-            onClick={() => onSave(editedField)}
-            className="px-4 py-2 bg-blue-500 text-white rounded"
-          >
-            Save Changes
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
+import FieldsContainer from './components/fields-container';
+import FieldsSource from './components/fields-source';
 
 export default function Home() {
   const [container1Fields, setContainer1Fields] = useState([]);
@@ -254,8 +111,8 @@ export default function Home() {
       const data = e.dataTransfer.getData('application/json');
       if (!data) return;
       
-      const { field, sourceContainer } = JSON.parse(data);
-      if (!field || !sourceContainer) return;
+      const { field, sourceContainer, source } = JSON.parse(data);
+      if (!field) return;
       
       // Get the drop position
       const container = e.target.closest('[id^="container"]');
@@ -286,7 +143,18 @@ export default function Home() {
         id: `${field.id}-${Date.now()}`
       };
       
-      if (sourceContainer === targetContainerId) {
+      if (source === 'source') {
+        // Adding a new field from the source
+        if (targetContainerId === 'container1') {
+          let newFields = [...container1Fields];
+          newFields.splice(dropIndex, 0, newField);
+          updateFields('container1', newFields);
+        } else if (targetContainerId === 'container2') {
+          let newFields = [...container2Fields];
+          newFields.splice(dropIndex, 0, newField);
+          updateFields('container2', newFields);
+        }
+      } else if (sourceContainer === targetContainerId) {
         // Reordering within the same container
         let currentFields = sourceContainer === 'container1' ? container1Fields : container2Fields;
         
@@ -379,7 +247,11 @@ export default function Home() {
         <h1 className="text-2xl font-bold mb-6">Form Field Builder</h1>
         <p className="mb-4">Drag and drop fields between containers or across browser tabs/windows</p>
         
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-3 gap-6">
+          <div>
+            <FieldsSource />
+          </div>
+          
           <div>
             <h2 className="text-xl font-semibold mb-2">Container 1</h2>
             <FieldsContainer 
