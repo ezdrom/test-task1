@@ -3,11 +3,22 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import FieldsContainer from './components/fields-container';
-import FieldsSource from './components/fields-source';
+import FieldEditorModal from './components/field-editor-modal';
+
+// Define default source fields outside useEffect
+const defaultSourceFields = [
+  { id: 'text-field', type: 'text', label: 'Text Field', placeholder: 'Enter text' },
+  { id: 'email-field', type: 'email', label: 'Email Field', placeholder: 'Enter email' },
+  { id: 'number-field', type: 'number', label: 'Number Field', placeholder: 'Enter number' },
+  { id: 'date-field', type: 'date', label: 'Date Field' },
+  { id: 'checkbox-field', type: 'checkbox', label: 'Checkbox', checkboxLabel: 'Check this option' },
+  { id: 'select-field', type: 'select', label: 'Select Field', options: ['Option 1', 'Option 2', 'Option 3'] },
+];
 
 export default function Home() {
   const [container1Fields, setContainer1Fields] = useState([]);
   const [container2Fields, setContainer2Fields] = useState([]);
+  const [sourceFields, setSourceFields] = useState(defaultSourceFields); // Initialize with default values
   const [draggedField, setDraggedField] = useState(null);
   const [dragSourceContainer, setDragSourceContainer] = useState(null);
   const [editingField, setEditingField] = useState(null);
@@ -82,7 +93,7 @@ export default function Home() {
       if (containerId === 'container1') {
         setContainer1Fields(newFields);
         localStorage.setItem('container1Fields', JSON.stringify(newFields));
-      } else {
+      } else if (containerId === 'container2') {
         setContainer2Fields(newFields);
         localStorage.setItem('container2Fields', JSON.stringify(newFields));
       }
@@ -107,15 +118,24 @@ export default function Home() {
     
     if (!isInitialized) return;
     
+    // Skip drop on source container
+    if (targetContainerId === 'sourceContainer') return;
+    
     try {
       const data = e.dataTransfer.getData('application/json');
       if (!data) return;
       
-      const { field, sourceContainer, source } = JSON.parse(data);
+      const parsedData = JSON.parse(data);
+      const { field, sourceContainer, source } = parsedData;
       if (!field) return;
+      
+      console.log('Drop data:', parsedData);
+      console.log('Target container:', targetContainerId);
       
       // Get the drop position
       const container = e.target.closest('[id^="container"]');
+      if (!container) return;
+      
       const containerRect = container.getBoundingClientRect();
       const dropY = e.clientY - containerRect.top;
       
@@ -143,7 +163,7 @@ export default function Home() {
         id: `${field.id}-${Date.now()}`
       };
       
-      if (source === 'source') {
+      if (source === 'source' || sourceContainer === 'sourceContainer') {
         // Adding a new field from the source
         if (targetContainerId === 'container1') {
           let newFields = [...container1Fields];
@@ -162,14 +182,10 @@ export default function Home() {
         currentFields = currentFields.filter(f => f.id !== field.id);
         
         // Insert at the new position
-        currentFields.splice(dropIndex, 0, newField);
+        currentFields.splice(dropIndex, 0, field);
         
         // Update the container
-        if (sourceContainer === 'container1') {
-          updateFields('container1', currentFields);
-        } else {
-          updateFields('container2', currentFields);
-        }
+        updateFields(sourceContainer, currentFields);
       } else {
         // Moving between containers
         // Remove from source container
@@ -184,11 +200,11 @@ export default function Home() {
         // Add to target container at the drop position
         if (targetContainerId === 'container1') {
           let newFields = [...container1Fields];
-          newFields.splice(dropIndex, 0, newField);
+          newFields.splice(dropIndex, 0, field);
           updateFields('container1', newFields);
         } else if (targetContainerId === 'container2') {
           let newFields = [...container2Fields];
-          newFields.splice(dropIndex, 0, newField);
+          newFields.splice(dropIndex, 0, field);
           updateFields('container2', newFields);
         }
       }
@@ -249,7 +265,16 @@ export default function Home() {
         
         <div className="grid md:grid-cols-3 gap-6">
           <div>
-            <FieldsSource />
+            <FieldsContainer 
+              containerId="sourceContainer"
+              fields={sourceFields}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              onDragStart={handleDragStart}
+              onEditField={handleEditField}
+              source={true}
+              title="Available Fields"
+            />
           </div>
           
           <div>
@@ -261,6 +286,7 @@ export default function Home() {
               onDrop={handleDrop}
               onDragStart={handleDragStart}
               onEditField={handleEditField}
+              source={false}
             />
           </div>
           
@@ -273,6 +299,7 @@ export default function Home() {
               onDrop={handleDrop}
               onDragStart={handleDragStart}
               onEditField={handleEditField}
+              source={false}
             />
           </div>
         </div>
