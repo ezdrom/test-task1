@@ -9,12 +9,10 @@ Multiple Field Types: Support for text inputs, checkboxes, date pickers, and mor
 Field Editing: Edit field properties such as labels, types, and other configurations after placement
 Responsive Design: Works seamlessly across different screen sizes
 
-Technology Stack
-
 Framework: Next.js
 
 Installation
-bashCopy# Clone the repository
+# Clone the repository
 git clone https://github.com/ezdrom/test-task1.git
 
 # Navigate to project directory
